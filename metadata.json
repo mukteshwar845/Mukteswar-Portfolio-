@@ -1,0 +1,6 @@
+{
+  "name": "Midnight Precision",
+  "description": "A 3D-animated cyber-minimalist CSE student portfolio for Mukteswar Gochhayat with interactive algorithm visualizations, automatic server-side Gemini CV parsing, and certifications.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

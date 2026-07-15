@@ -1,0 +1,172 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sora: "Sora", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  
+  --breakpoint-xxs: 360px;
+  --breakpoint-xs: 480px;
+  
+  --color-primary: #adc6ff;
+  --color-primary-container: #4b8eff;
+  --color-secondary-container: #c3f400;
+  --color-background-dark: #080808;
+  --color-surface-dark: #0f0f0f;
+  --color-surface-glass: rgba(15, 15, 15, 0.65);
+  --color-border-subtle: rgba(173, 198, 255, 0.15);
+  --color-error-cyber: #ffb4ab;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scanner {
+  0% { transform: translateY(-100%); }
+  50% { transform: translateY(100%); }
+  100% { transform: translateY(-100%); }
+}
+
+@keyframes hud-flicker {
+  0% { opacity: 0.3; }
+  5% { opacity: 0.8; }
+  10% { opacity: 0.3; }
+  45% { opacity: 0.3; }
+  50% { opacity: 1; }
+  55% { opacity: 0.3; }
+  100% { opacity: 0.3; }
+}
+
+@keyframes electric-glow {
+  0%, 100% { text-shadow: 0 0 10px rgba(173, 198, 255, 0.4), 0 0 20px rgba(173, 198, 255, 0.2); }
+  50% { text-shadow: 0 0 15px rgba(173, 198, 255, 0.8), 0 0 30px rgba(173, 198, 255, 0.4); }
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-10px) rotate(2deg); }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-float {
+  animation: float-slow 6s ease-in-out infinite;
+}
+
+.electric-text {
+  animation: electric-glow 3s infinite ease-in-out;
+}
+
+/* Glassmorphism containers with weighted top borders */
+.glass-card {
+  background: rgba(15, 15, 15, 0.65);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(173, 198, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #adc6ff, transparent);
+  transform: translateX(-100%);
+  transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card:hover::before {
+  transform: translateX(100%);
+}
+
+.glass-card:hover {
+  background: rgba(18, 18, 18, 0.85);
+  border-color: rgba(173, 198, 255, 0.4);
+  box-shadow: 0 0 40px rgba(173, 198, 255, 0.08);
+}
+
+/* Cybernetic cut buttons */
+.cyber-btn-primary {
+  position: relative;
+  font-family: "Inter", monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  padding: 1rem 2.2rem;
+  background: #adc6ff;
+  color: #001a41;
+  transition: all 0.3s ease;
+  clip-path: polygon(0 0, 90% 0, 100% 30%, 100% 100%, 10% 100%, 0 70%);
+}
+
+.cyber-btn-primary:hover {
+  background: #c3f400;
+  color: #161e00;
+  transform: translateY(-2px);
+  box-shadow: 0 0 20px rgba(195, 244, 0, 0.3);
+}
+
+.cyber-btn-secondary {
+  position: relative;
+  font-family: "Inter", monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  padding: 1rem 2.2rem;
+  background: transparent;
+  color: #c3f400;
+  border: 1px solid rgba(195, 244, 0, 0.3);
+  transition: all 0.3s ease;
+  clip-path: polygon(10% 0, 100% 0, 100% 70%, 90% 100%, 0 100%, 0 30%);
+}
+
+.cyber-btn-secondary:hover {
+  border-color: #c3f400;
+  background: rgba(195, 244, 0, 0.05);
+  transform: translateY(-2px);
+  box-shadow: 0 0 15px rgba(195, 244, 0, 0.15);
+}
+
+/* Scrollbar customizations */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #080808;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a2a2a;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #adc6ff;
+}
+
+/* 3D Flipping Card Utility Styles */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.transform-style-3d {
+  transform-style: preserve-3d;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
+
