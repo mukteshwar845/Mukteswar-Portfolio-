@@ -7,9 +7,10 @@ import { CredentialsShowcase } from "./components/CredentialsShowcase";
 import { AboutMe, SkillsSnapshot } from "./components/AboutMe";
 import { IdentityCard3D } from "./components/IdentityCard3D";
 import { Github, Linkedin, Mail, ArrowRight, MessageSquare, MapPin, Phone } from "lucide-react";
-import { getProjects, getCredentials, getSkills } from "./lib/dataService";
+import { getProjects, getCredentials, getSkills, getAbout, getTimeline } from "./lib/dataService";
 import { AdminPanel } from "./components/AdminPanel";
 import { InteractiveParticleField } from "./components/InteractiveParticleField";
+import { PremiumFuturisticBackground } from "./components/PremiumFuturisticBackground";
 
 export default function App() {
   const [scanCoords, setScanCoords] = useState({ x: 0.0, y: 0.0 });
@@ -19,17 +20,23 @@ export default function App() {
   const [dbProjects, setDbProjects] = useState<any[]>([]);
   const [dbCerts, setDbCerts] = useState<any[]>([]);
   const [dbSkills, setDbSkills] = useState<any[]>([]);
+  const [dbAbout, setDbAbout] = useState<any>(null);
+  const [dbTimeline, setDbTimeline] = useState<any[]>([]);
 
   const fetchDatabase = async () => {
     try {
-      const [projectsData, certsData, skillsData] = await Promise.all([
+      const [projectsData, certsData, skillsData, aboutData, timelineData] = await Promise.all([
         getProjects(),
         getCredentials(),
-        getSkills()
+        getSkills(),
+        getAbout(),
+        getTimeline()
       ]);
       setDbProjects(projectsData);
       setDbCerts(certsData);
       setDbSkills(skillsData);
+      setDbAbout(aboutData);
+      setDbTimeline(timelineData);
     } catch (err) {
       console.error("[Database] Error synchronizing backend data streams:", err);
     }
@@ -166,17 +173,16 @@ CONTACT:
   };
 
   return (
-    <div className="bg-[#030305] text-white selection:bg-[#6366f1] selection:text-white min-h-screen relative font-sans antialiased overflow-x-hidden">
+    <div className="bg-[#050505] text-white selection:bg-[#6366f1] selection:text-white min-h-screen relative font-sans antialiased overflow-x-hidden">
       
+      {/* Premium Futuristic Animated Backdrop */}
+      <PremiumFuturisticBackground />
+
       {/* Dynamic Header */}
       <Header onContactClick={handleContactTrigger} />
 
       {/* Sidebar Dock (Fixed Left Navigation Bar) */}
       <SidebarDock />
-
-      {/* Cybernetic Grid Matrix Overlays */}
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.005)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.005)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none z-0" />
-      <div className="absolute top-0 left-0 w-full h-[600px] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-950/15 via-purple-950/5 to-transparent pointer-events-none z-0" />
 
       {/* Primary Container */}
       <main className="relative z-10 pt-20 px-6 md:px-16 xl:pl-32 max-w-7xl mx-auto space-y-32 pb-24">
@@ -289,10 +295,10 @@ CONTACT:
         </section>
 
         {/* Section 2: About Me */}
-        <AboutMe skills={dbSkills} />
+        <AboutMe skills={dbSkills} aboutData={dbAbout} timelineStory={dbTimeline} />
 
         {/* Section 3: Skills Snapshot */}
-        <SkillsSnapshot skills={dbSkills} />
+        <SkillsSnapshot skills={dbSkills} aboutData={dbAbout} />
 
         {/* Section 4: Interactive Projects & Tech Stack Showcase */}
         <section id="case-studies" className="space-y-12 scroll-mt-28">

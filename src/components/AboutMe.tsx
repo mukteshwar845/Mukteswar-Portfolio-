@@ -210,10 +210,30 @@ export interface SkillCategoryData {
 
 interface AboutMeProps {
   skills?: SkillCategoryData[];
+  aboutData?: {
+    bio_title: string;
+    bio_subtitle: string;
+    bio_paragraphs: string[];
+    philosophy_quote: string;
+    philosophy_author: string;
+    philosophy_title: string;
+  };
+  timelineStory?: Milestone[];
 }
 
-export const AboutMe: React.FC<AboutMeProps> = ({ skills }) => {
+export const AboutMe: React.FC<AboutMeProps> = ({ skills, aboutData, timelineStory }) => {
   const activeSkills = skills && skills.length > 0 ? skills : SKILL_CATEGORIES;
+  const activeTimeline = timelineStory && timelineStory.length > 0 ? timelineStory : TIMELINE_STORY;
+
+  const defaultBioParagraphs = [
+    "I'm Mukteswar Gochhayat, a Computer Science and Engineering student at ITER, SOA University, driven by curiosity and a passion for building software that is scalable, intelligent, and impactful. Every project is a canvas to turn complex logistical questions into polished, robust architectures.",
+    "Today, I primarily construct advanced application backends and interactive systems using Python, Java, Django, and Full Stack design elements, with an emphasis on rigorous Problem Solving through Data Structures & Algorithms.",
+    "I am highly fascinated by the frontier of Artificial Intelligence and Machine Learning. My mission in Software Engineering is to bridge traditional engineering excellence with cognitive learning networks—pioneering tools that make intelligent, automated decisions in real-time."
+  ];
+
+  const bioParagraphs = aboutData?.bio_paragraphs && aboutData.bio_paragraphs.length > 0
+    ? aboutData.bio_paragraphs
+    : defaultBioParagraphs;
 
   return (
     <section id="about" className="space-y-24 scroll-mt-28 relative">
@@ -240,23 +260,25 @@ export const AboutMe: React.FC<AboutMeProps> = ({ skills }) => {
       <div className="max-w-4xl space-y-8 text-left">
         <div className="space-y-4">
           <span className="font-mono text-xs text-[#c3f400] font-bold tracking-widest flex items-center gap-1.5 uppercase">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#c3f400]" /> Biography dossier
+            <span className="w-1.5 h-1.5 rounded-full bg-[#c3f400]" /> {aboutData?.bio_title || "Biography dossier"}
           </span>
           <h3 className="font-sora text-3xl font-extrabold text-white tracking-tight leading-tight">
-            Turning Ideas Into <span className="bg-gradient-to-r from-[#adc6ff] to-[#c3f400] bg-clip-text text-transparent font-extrabold">Scalable Software</span> & <span className="bg-gradient-to-r from-[#c3f400] to-[#adc6ff] bg-clip-text text-transparent font-extrabold">Intelligent Solutions</span>
+            {aboutData?.bio_subtitle ? (
+              <span>{aboutData.bio_subtitle}</span>
+            ) : (
+              <>
+                Turning Ideas Into <span className="bg-gradient-to-r from-[#adc6ff] to-[#c3f400] bg-clip-text text-transparent font-extrabold">Scalable Software</span> & <span className="bg-gradient-to-r from-[#c3f400] to-[#adc6ff] bg-clip-text text-transparent font-extrabold">Intelligent Solutions</span>
+              </>
+            )}
           </h3>
         </div>
 
         <div className="space-y-5 text-sm text-[#c1c6d7] leading-relaxed font-sans font-normal">
-          <p className="animate-fade-in-up">
-            I'm <strong className="text-white font-semibold">Mukteswar Gochhayat</strong>, a Computer Science and Engineering student at <strong className="text-white font-semibold">ITER, SOA University</strong>, driven by curiosity and a passion for building software that is scalable, intelligent, and impactful. Every project is a canvas to turn complex logistical questions into polished, robust architectures.
-          </p>
-          <p>
-            Today, I primarily construct advanced application backends and interactive systems using <span className="bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent font-bold">Python</span>, <span className="bg-gradient-to-r from-amber-400 to-yellow-500 bg-clip-text text-transparent font-bold">Java</span>, <span className="bg-gradient-to-r from-[#092e20] to-[#2eb086] bg-clip-text text-transparent font-bold">Django</span>, and <span className="bg-gradient-to-r from-[#adc6ff] to-[#c3f400] bg-clip-text text-transparent font-bold">Full Stack</span> design elements, with an emphasis on rigorous <span className="text-[#c3f400] font-bold">Problem Solving</span> through Data Structures & Algorithms.
-          </p>
-          <p>
-            I am highly fascinated by the frontier of <span className="bg-gradient-to-r from-indigo-300 via-purple-300 to-pink-300 bg-clip-text text-transparent font-bold">Artificial Intelligence</span> and <span className="bg-gradient-to-r from-[#adc6ff] to-[#c3f400] bg-clip-text text-transparent font-bold">Machine Learning</span>. My mission in <span className="text-[#adc6ff] font-bold">Software Engineering</span> is to bridge traditional engineering excellence with cognitive learning networks—pioneering tools that make intelligent, automated decisions in real-time.
-          </p>
+          {bioParagraphs.map((paragraph, pIdx) => (
+            <p key={pIdx} className="animate-fade-in-up">
+              {paragraph}
+            </p>
+          ))}
         </div>
 
         {/* Quick Stats Grid */}
@@ -368,9 +390,9 @@ export const AboutMe: React.FC<AboutMeProps> = ({ skills }) => {
         <div className="lg:col-span-8 relative pl-6 border-l border-white/5 space-y-8">
           <div className="absolute left-[-1.5px] top-2 bottom-2 w-[3px] bg-gradient-to-b from-[#adc6ff] to-[#c3f400]" />
           
-          {TIMELINE_STORY.map((item, index) => (
+          {activeTimeline.map((item, index) => (
             <motion.div 
-              key={index}
+              key={item.id || index}
               initial={{ opacity: 0, x: -10 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true, margin: "-50px" }}
@@ -406,9 +428,17 @@ export const AboutMe: React.FC<AboutMeProps> = ({ skills }) => {
 
 interface SkillsSnapshotProps {
   skills?: SkillCategoryData[];
+  aboutData?: {
+    bio_title: string;
+    bio_subtitle: string;
+    bio_paragraphs: string[];
+    philosophy_quote: string;
+    philosophy_author: string;
+    philosophy_title: string;
+  };
 }
 
-export const SkillsSnapshot: React.FC<SkillsSnapshotProps> = ({ skills }) => {
+export const SkillsSnapshot: React.FC<SkillsSnapshotProps> = ({ skills, aboutData }) => {
   const [hoveredSkill, setHoveredSkill] = useState<any | null>(null);
   const [activeFocus, setActiveFocus] = useState<string>("Artificial Intelligence");
   const activeSkills = skills && skills.length > 0 ? skills : SKILL_CATEGORIES;
@@ -482,13 +512,17 @@ export const SkillsSnapshot: React.FC<SkillsSnapshotProps> = ({ skills }) => {
             Engineering Philosophy
           </span>
           <p className="font-sora text-lg md:text-xl font-bold text-white leading-relaxed tracking-tight select-none italic">
-            "My goal is not just to write code, but to build technology that solves meaningful problems, creates value, and positively impacts people's lives."
+            {aboutData?.philosophy_quote || `"My goal is not just to write code, but to build technology that solves meaningful problems, creates value, and positively impacts people's lives."`}
           </p>
           <div className="flex items-center gap-3">
             <div className="w-1 h-8 bg-[#adc6ff]" />
             <div>
-              <h5 className="font-sora text-xs font-bold text-white uppercase tracking-tight">Mukteswar Gochhayat</h5>
-              <p className="font-mono text-[10px] text-white/50">Computer Science & Engineering Scholar</p>
+              <h5 className="font-sora text-xs font-bold text-white uppercase tracking-tight">
+                {aboutData?.philosophy_author || "Mukteswar Gochhayat"}
+              </h5>
+              <p className="font-mono text-[10px] text-white/50">
+                {aboutData?.philosophy_title || "Computer Science & Engineering Scholar"}
+              </p>
             </div>
           </div>
         </div>

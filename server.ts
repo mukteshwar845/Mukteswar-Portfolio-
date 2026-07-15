@@ -122,6 +122,32 @@ const SKILLS_FILE = path.join(process.cwd(), "src", "data", "db_skills.json");
 const RESUME_META_FILE = path.join(process.cwd(), "src", "data", "db_resume_meta.json");
 const RESUME_TEXT_FILE = path.join(process.cwd(), "src", "data", "db_resume_text.txt");
 const RESUME_UPLOAD_DIR = path.join(process.cwd(), "src", "data", "uploads");
+const ABOUT_FILE = path.join(process.cwd(), "src", "data", "db_about.json");
+const TIMELINE_FILE = path.join(process.cwd(), "src", "data", "db_timeline.json");
+
+// Default About section info
+const DEFAULT_ABOUT_CONTENT = {
+  bio_title: "Biography dossier",
+  bio_subtitle: "Turning Ideas Into Scalable Software & Intelligent Solutions",
+  bio_paragraphs: [
+    "I'm Mukteswar Gochhayat, a Computer Science and Engineering student at ITER, SOA University, driven by curiosity and a passion for building software that is scalable, intelligent, and impactful. Every project is a canvas to turn complex logistical questions into polished, robust architectures.",
+    "Today, I primarily construct advanced application backends and interactive systems using Python, Java, Django, and Full Stack design elements, with an emphasis on rigorous Problem Solving through Data Structures & Algorithms.",
+    "I am highly fascinated by the frontier of Artificial Intelligence and Machine Learning. My mission in Software Engineering is to bridge traditional engineering excellence with cognitive learning networks—pioneering tools that make intelligent, automated decisions in real-time."
+  ],
+  philosophy_quote: "\"My goal is not just to write code, but to build technology that solves meaningful problems, creates value, and positively impacts people's lives.\"",
+  philosophy_author: "Mukteswar Gochhayat",
+  philosophy_title: "Computer Science & Engineering Scholar"
+};
+
+// Default Timeline milestones
+const DEFAULT_TIMELINE_CONTENT = [
+  { id: "1", icon: "🚀", title: "Started Learning Programming", description: "Began with logical problem-solving, Python & Java fundamentals.", date: "2023" },
+  { id: "2", icon: "💻", title: "Built My First Web Application", description: "Developed interactive apps exploring custom layouts and server routes.", date: "2024" },
+  { id: "3", icon: "🌐", title: "Learned Full Stack Development", description: "Mastered Django, APIs, React, and database design with production paradigms.", date: "2024" },
+  { id: "4", icon: "🧠", title: "Exploring Artificial Intelligence", description: "Dived into Machine Learning models, regression, classification, and neural nets.", date: "2025" },
+  { id: "5", icon: "⚡", title: "Building Real-World Projects", description: "Deploying high-performance systems with automated telemetry and microservices.", date: "2025" },
+  { id: "6", icon: "🎯", title: "Becoming a Software Engineer", description: "Tackling scalable, distributed system architectures and industry problems.", date: "2026" }
+];
 
 // Ensure data folder exists
 const dataDir = path.join(process.cwd(), "src", "data");
@@ -239,6 +265,12 @@ function initDb() {
     }
     if (!fs.existsSync(RESUME_TEXT_FILE)) {
       fs.writeFileSync(RESUME_TEXT_FILE, DEFAULT_RESUME_CONTENT);
+    }
+    if (!fs.existsSync(ABOUT_FILE)) {
+      fs.writeFileSync(ABOUT_FILE, JSON.stringify(DEFAULT_ABOUT_CONTENT, null, 2));
+    }
+    if (!fs.existsSync(TIMELINE_FILE)) {
+      fs.writeFileSync(TIMELINE_FILE, JSON.stringify(DEFAULT_TIMELINE_CONTENT, null, 2));
     }
   } catch (err) {
     console.error("File DB initialization failed:", err);
@@ -414,6 +446,85 @@ app.post("/api/skills", verifyAdmin, (req, res) => {
     }
     fs.writeFileSync(SKILLS_FILE, JSON.stringify(updatedSkills, null, 2));
     return res.json({ success: true, skills: updatedSkills });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 3.5. ABOUT & TIMELINE ENDPOINTS
+app.get("/api/about", (req, res) => {
+  try {
+    const data = fs.readFileSync(ABOUT_FILE, "utf-8");
+    return res.json(JSON.parse(data));
+  } catch (err) {
+    return res.json(DEFAULT_ABOUT_CONTENT);
+  }
+});
+
+app.post("/api/about", verifyAdmin, (req, res) => {
+  try {
+    const updatedAbout = req.body;
+    if (!updatedAbout || typeof updatedAbout !== "object") {
+      return res.status(400).json({ error: "Invalid about format." });
+    }
+    fs.writeFileSync(ABOUT_FILE, JSON.stringify(updatedAbout, null, 2));
+    return res.json({ success: true, about: updatedAbout });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/timeline", (req, res) => {
+  try {
+    const data = fs.readFileSync(TIMELINE_FILE, "utf-8");
+    return res.json(JSON.parse(data));
+  } catch (err) {
+    return res.json(DEFAULT_TIMELINE_CONTENT);
+  }
+});
+
+app.post("/api/timeline", verifyAdmin, (req, res) => {
+  try {
+    const newMilestone = req.body;
+    if (!newMilestone.title || !newMilestone.date) {
+      return res.status(400).json({ error: "Missing title or date." });
+    }
+    if (!newMilestone.id) {
+      newMilestone.id = "timeline_" + Date.now().toString(36);
+    }
+    const current = JSON.parse(fs.readFileSync(TIMELINE_FILE, "utf-8"));
+    current.push(newMilestone);
+    fs.writeFileSync(TIMELINE_FILE, JSON.stringify(current, null, 2));
+    return res.json({ success: true, milestone: newMilestone });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/timeline/:id", verifyAdmin, (req, res) => {
+  try {
+    const { id } = req.params;
+    const updatedMilestone = req.body;
+    const current = JSON.parse(fs.readFileSync(TIMELINE_FILE, "utf-8"));
+    const index = current.findIndex((m: any) => m.id === id);
+    if (index === -1) {
+      return res.status(404).json({ error: "Milestone not found." });
+    }
+    current[index] = { ...current[index], ...updatedMilestone };
+    fs.writeFileSync(TIMELINE_FILE, JSON.stringify(current, null, 2));
+    return res.json({ success: true, milestone: current[index] });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/timeline/:id", verifyAdmin, (req, res) => {
+  try {
+    const { id } = req.params;
+    const current = JSON.parse(fs.readFileSync(TIMELINE_FILE, "utf-8"));
+    const filtered = current.filter((m: any) => m.id !== id);
+    fs.writeFileSync(TIMELINE_FILE, JSON.stringify(filtered, null, 2));
+    return res.json({ success: true, deletedId: id });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }

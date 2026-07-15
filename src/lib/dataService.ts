@@ -306,3 +306,125 @@ export async function resetResume(): Promise<boolean> {
     return false;
   }
 }
+
+// --------------------------------------------------
+// DYNAMIC ABOUT SECTION & JOURNEY TIMELINE MANAGEMENT
+// --------------------------------------------------
+const ABOUT_CACHE_KEY = "mukteswar_cached_about";
+const TIMELINE_CACHE_KEY = "mukteswar_cached_timeline";
+
+export interface AboutData {
+  bio_title: string;
+  bio_subtitle: string;
+  bio_paragraphs: string[];
+  philosophy_quote: string;
+  philosophy_author: string;
+  philosophy_title: string;
+}
+
+export interface TimelineMilestone {
+  id?: string;
+  icon: string;
+  title: string;
+  description: string;
+  date: string;
+}
+
+export async function getAbout(): Promise<AboutData | null> {
+  try {
+    const res = await fetch("/api/about");
+    if (!res.ok) throw new Error("Server returned error status");
+    const data = await res.json() as AboutData;
+    localStorage.setItem(ABOUT_CACHE_KEY, JSON.stringify(data));
+    return data;
+  } catch (err) {
+    console.warn("Falling back to local about cache...", err);
+    const cached = localStorage.getItem(ABOUT_CACHE_KEY);
+    if (cached) return JSON.parse(cached);
+    return null;
+  }
+}
+
+export async function saveAbout(about: AboutData): Promise<boolean> {
+  const token = getStoredToken();
+  if (!token) return false;
+  try {
+    const res = await fetch("/api/about", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": token
+      },
+      body: JSON.stringify(about)
+    });
+    const data = await res.json();
+    return !!data.success;
+  } catch (err) {
+    console.error("Error saving about info to server:", err);
+    return false;
+  }
+}
+
+export async function getTimeline(): Promise<TimelineMilestone[]> {
+  try {
+    const res = await fetch("/api/timeline");
+    if (!res.ok) throw new Error("Server returned error status");
+    const data = await res.json() as TimelineMilestone[];
+    localStorage.setItem(TIMELINE_CACHE_KEY, JSON.stringify(data));
+    return data;
+  } catch (err) {
+    console.warn("Falling back to local timeline cache...", err);
+    const cached = localStorage.getItem(TIMELINE_CACHE_KEY);
+    if (cached) return JSON.parse(cached);
+    return [];
+  }
+}
+
+export async function saveTimelineMilestone(milestone: TimelineMilestone): Promise<boolean> {
+  const token = getStoredToken();
+  if (!token) return false;
+  try {
+    const url = milestone.id && !milestone.id.startsWith("new_") 
+      ? `/api/timeline/${milestone.id}` 
+      : "/api/timeline";
+    const method = milestone.id && !milestone.id.startsWith("new_") ? "PUT" : "POST";
+    
+    // clean temporary custom ids from form fields before sending
+    const payload = { ...milestone };
+    if (payload.id && payload.id.startsWith("new_")) {
+      delete payload.id;
+    }
+
+    const res = await fetch(url, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": token
+      },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    return !!data.success;
+  } catch (err) {
+    console.error("Error saving timeline milestone to server:", err);
+    return false;
+  }
+}
+
+export async function deleteTimelineMilestone(id: string): Promise<boolean> {
+  const token = getStoredToken();
+  if (!token) return false;
+  try {
+    const res = await fetch(`/api/timeline/${id}`, {
+      method: "DELETE",
+      headers: {
+        "Authorization": token
+      }
+    });
+    const data = await res.json();
+    return !!data.success;
+  } catch (err) {
+    console.error("Error deleting timeline milestone from server:", err);
+    return false;
+  }
+}

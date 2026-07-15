@@ -19,7 +19,9 @@ import {
   Sparkles,
   RefreshCw,
   LogOut,
-  FileText
+  FileText,
+  Clock,
+  User
 } from "lucide-react";
 import { 
   loginAdmin, 
@@ -39,7 +41,14 @@ import {
   saveResumeText,
   uploadResumeFile,
   resetResume,
-  ResumeData
+  ResumeData,
+  getAbout,
+  saveAbout,
+  getTimeline,
+  saveTimelineMilestone,
+  deleteTimelineMilestone,
+  AboutData,
+  TimelineMilestone
 } from "../lib/dataService";
 import { ProjectDetail } from "../data/projectsData";
 import { CertificateDetail } from "../data/credentialsData";
@@ -54,12 +63,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onDataChange }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"projects" | "certificates" | "skills" | "resume">("projects");
+  const [activeTab, setActiveTab] = useState<"projects" | "certificates" | "skills" | "resume" | "timeline" | "about">("projects");
 
   // Entity Lists
   const [projects, setProjects] = useState<ProjectDetail[]>([]);
   const [credentials, setCredentials] = useState<CertificateDetail[]>([]);
   const [skills, setSkills] = useState<SkillCategoryData[]>([]);
+  const [timelineMilestones, setTimelineMilestones] = useState<TimelineMilestone[]>([]);
+  const [aboutData, setAboutData] = useState<AboutData | null>(null);
   
   // Resume state
   const [resumeData, setResumeData] = useState<ResumeData | null>(null);
@@ -70,6 +81,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onDataChange }) => {
   // Selection & Form States
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [editingCertId, setEditingCertId] = useState<string | null>(null);
+  const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
   
   // Custom console log system for hacker-cyberpunk styling
   const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
@@ -119,21 +131,58 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onDataChange }) => {
     category: "Backend"
   });
 
+  // Timeline form
+  const [timelineForm, setTimelineForm] = useState<Partial<TimelineMilestone>>({
+    id: "",
+    icon: "🚀",
+    title: "",
+    description: "",
+    date: ""
+  });
+
+  // About Form
+  const [aboutForm, setAboutForm] = useState<Partial<AboutData>>({
+    bio_title: "Biography dossier",
+    bio_subtitle: "Turning Ideas Into Scalable Software & Intelligent Solutions",
+    philosophy_quote: "",
+    philosophy_author: "Mukteswar Gochhayat",
+    philosophy_title: "Computer Science & Engineering Scholar"
+  });
+  const [aboutParagraphsText, setAboutParagraphsText] = useState("");
+  const [isAboutSaving, setIsAboutSaving] = useState(false);
+  const [isTimelineSaving, setIsTimelineSaving] = useState(false);
+
   // Load datasets
   const loadAllData = async () => {
     try {
-      const p = await getProjects();
-      const c = await getCredentials();
-      const s = await getSkills();
-      const r = await getResume();
-      setProjects(p);
-      setCredentials(c);
-      setSkills(s);
+      const [p, c, s, r, ab, tl] = await Promise.all([
+        getProjects(),
+        getCredentials(),
+        getSkills(),
+        getResume(),
+        getAbout(),
+        getTimeline()
+      ]);
+      setProjects(p || []);
+      setCredentials(c || []);
+      setSkills(s || []);
       if (r) {
         setResumeData(r);
         setResumeText(r.textContent || "");
       }
-      addLog(`Sync handshake secure. Synchronized ${p.length} projects, ${c.length} certs, ${s.length} skill tracks.`);
+      if (ab) {
+        setAboutData(ab);
+        setAboutParagraphsText(ab.bio_paragraphs ? ab.bio_paragraphs.join("\n") : "");
+        setAboutForm({
+          bio_title: ab.bio_title || "Biography dossier",
+          bio_subtitle: ab.bio_subtitle || "Turning Ideas Into Scalable Software & Intelligent Solutions",
+          philosophy_quote: ab.philosophy_quote || "",
+          philosophy_author: ab.philosophy_author || "Mukteswar Gochhayat",
+          philosophy_title: ab.philosophy_title || "Computer Science & Engineering Scholar"
+        });
+      }
+      setTimelineMilestones(tl || []);
+      addLog(`Sync handshake secure. Synchronized ${p.length} projects, ${c.length} certs, ${s.length} skill tracks, ${tl.length} journey events.`);
     } catch (err) {
       addLog(`⚠️ Handshake error: Failed to fetch backend databases.`);
     }
@@ -417,6 +466,91 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onDataChange }) => {
     }
   };
 
+  // --------------------------------------------------
+  // ABOUT SECTION ACTIONS
+  // --------------------------------------------------
+  const handleSaveAbout = async (e: React.FormEvent) => {
+    e.preventDefault();
+    addLog(`Saving About Me biography database entries...`);
+    setIsAboutSaving(true);
+
+    const paragraphsArray = aboutParagraphsText
+      .split("\n")
+      .map(p => p.trim())
+      .filter(p => p.length > 0);
+
+    const payload: AboutData = {
+      bio_title: aboutForm.bio_title || "Biography dossier",
+      bio_subtitle: aboutForm.bio_subtitle || "",
+      bio_paragraphs: paragraphsArray,
+      philosophy_quote: aboutForm.philosophy_quote || "",
+      philosophy_author: aboutForm.philosophy_author || "Mukteswar Gochhayat",
+      philosophy_title: aboutForm.philosophy_title || "Computer Science & Engineering Scholar"
+    };
+
+    const success = await saveAbout(payload);
+    setIsAboutSaving(false);
+    if (success) {
+      addLog(`Success! Saved Biography & Philosophy Quote elements.`);
+      loadAllData();
+      onDataChange();
+    } else {
+      addLog(`❌ Database error: About Me update rejected.`);
+    }
+  };
+
+  // --------------------------------------------------
+  // JOURNEY LOG TIMELINE ACTIONS
+  // --------------------------------------------------
+  const handleSaveTimelineMilestone = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!timelineForm.title || !timelineForm.date) {
+      addLog(`⚠️ Validation error: Missing Milestone Title or Date.`);
+      return;
+    }
+
+    addLog(`Saving Timeline milestone node "${timelineForm.title}"...`);
+    setIsTimelineSaving(true);
+    const payload: TimelineMilestone = {
+      id: timelineForm.id || `milestone-${Date.now()}`,
+      icon: timelineForm.icon || "🚀",
+      title: timelineForm.title,
+      description: timelineForm.description || "",
+      date: timelineForm.date
+    };
+
+    const success = await saveTimelineMilestone(payload);
+    setIsTimelineSaving(false);
+    if (success) {
+      addLog(`Success! Saved milestone "${timelineForm.title}" to Journey Log.`);
+      setEditingMilestoneId(null);
+      setTimelineForm({ id: "", icon: "🚀", title: "", description: "", date: "" });
+      loadAllData();
+      onDataChange();
+    } else {
+      addLog(`❌ Database error: Timeline milestone sync rejected.`);
+    }
+  };
+
+  const handleDeleteTimelineMilestone = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this journey milestone permanently?")) return;
+    addLog(`Requesting deletion for Timeline Node [${id}]...`);
+    const success = await deleteTimelineMilestone(id);
+    if (success) {
+      addLog(`Success! Deleted Milestone Node [${id}].`);
+      loadAllData();
+      onDataChange();
+    } else {
+      addLog(`❌ Database error: Deletion failed.`);
+    }
+  };
+
+  const startEditTimelineMilestone = (m: TimelineMilestone) => {
+    setEditingMilestoneId(m.id);
+    setTimelineForm(m);
+    addLog(`Loaded Milestone Node [${m.id}] into timeline compiler.`);
+  };
+
   return (
     <>
       <AnimatePresence>
@@ -517,7 +651,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onDataChange }) => {
                         { id: "projects", label: "Projects", icon: Folder },
                         { id: "certificates", label: "Achievements", fullLabel: "Achievements & Certs", icon: Award },
                         { id: "skills", label: "Skills", icon: Cpu },
-                        { id: "resume", label: "Resume", fullLabel: "Resume Manager", icon: FileText }
+                        { id: "resume", label: "Resume", fullLabel: "Resume Manager", icon: FileText },
+                        { id: "timeline", label: "Timeline", fullLabel: "Journey Log", icon: Clock },
+                        { id: "about", label: "About", fullLabel: "About Section", icon: User }
                       ].map((t) => (
                         <button
                           key={t.id}
@@ -1153,6 +1289,250 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onDataChange }) => {
                             </div>
                           )}
                         </div>
+                      </div>
+                    )}
+
+                    {activeTab === "timeline" && (
+                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-left animate-fade-in">
+                        {/* Form (5 cols) */}
+                        <form onSubmit={handleSaveTimelineMilestone} className="lg:col-span-5 space-y-4 bg-black/20 border border-white/5 p-6">
+                          <h4 className="font-sora text-xs font-bold text-[#c3f400] uppercase tracking-wider mb-2 flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-[#c3f400]" />
+                            {editingMilestoneId ? `Edit Milestone: [${editingMilestoneId}]` : "Add Journey Milestone"}
+                          </h4>
+
+                          <div className="space-y-1">
+                            <label className="block font-mono text-[8px] text-white/40 uppercase">Icon Node *</label>
+                            <select
+                              value={timelineForm.icon}
+                              onChange={(e) => setTimelineForm({ ...timelineForm, icon: e.target.value })}
+                              className="w-full bg-[#050608] border border-white/10 px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#c3f400]"
+                            >
+                              <option value="🚀">🚀 Launch (Rocket)</option>
+                              <option value="🎓">🎓 Academic (Graduation)</option>
+                              <option value="💼">💼 Experience (Briefcase)</option>
+                              <option value="🏆">🏆 Achievement (Trophy)</option>
+                              <option value="🌟">🌟 Milestone (Star)</option>
+                              <option value="💻">💻 Project (Code/Laptop)</option>
+                              <option value="🧠">🧠 Learning (Brain)</option>
+                              <option value="🔥">🔥 Passion (Fire)</option>
+                            </select>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="block font-mono text-[8px] text-white/40 uppercase">Milestone Title *</label>
+                            <input
+                              type="text"
+                              required
+                              value={timelineForm.title || ""}
+                              onChange={(e) => setTimelineForm({ ...timelineForm, title: e.target.value })}
+                              placeholder="e.g. Computer Science Engineering Student"
+                              className="w-full bg-[#050608] border border-white/10 px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#c3f400]"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="block font-mono text-[8px] text-white/40 uppercase">Timeline Date *</label>
+                            <input
+                              type="text"
+                              required
+                              value={timelineForm.date || ""}
+                              onChange={(e) => setTimelineForm({ ...timelineForm, date: e.target.value })}
+                              placeholder="e.g. Dec 2023, 2024 - Present"
+                              className="w-full bg-[#050608] border border-white/10 px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#c3f400]"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="block font-mono text-[8px] text-white/40 uppercase">Milestone Description *</label>
+                            <textarea
+                              required
+                              value={timelineForm.description || ""}
+                              onChange={(e) => setTimelineForm({ ...timelineForm, description: e.target.value })}
+                              placeholder="Describe your milestone achievements, core projects, or learning acquisitions..."
+                              rows={5}
+                              className="w-full bg-[#050608] border border-white/10 px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#c3f400]"
+                            />
+                          </div>
+
+                          <div className="flex justify-end gap-3 pt-2">
+                            {editingMilestoneId && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingMilestoneId(null);
+                                  setTimelineForm({ id: "", icon: "🚀", title: "", description: "", date: "" });
+                                }}
+                                className="bg-white/10 hover:bg-white/20 text-white font-mono text-[9px] uppercase px-3 py-2 flex items-center gap-1.5 cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                            )}
+                            <button
+                              type="submit"
+                              disabled={isTimelineSaving}
+                              className="bg-[#c3f400] hover:bg-white text-black font-mono text-[9px] uppercase font-black px-4 py-2 flex items-center gap-1.5 cursor-pointer shadow-[0_0_15px_rgba(195,244,0,0.15)]"
+                            >
+                              {isTimelineSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                              {editingMilestoneId ? "Update Milestone" : "Add Milestone"}
+                            </button>
+                          </div>
+                        </form>
+
+                        {/* List (7 cols) */}
+                        <div className="lg:col-span-7 space-y-4 bg-black/20 border border-white/5 p-6 overflow-y-auto max-h-[600px]">
+                          <h4 className="font-sora text-xs font-bold text-[#adc6ff] uppercase tracking-wider mb-2">
+                            Active Journey Log ({timelineMilestones.length})
+                          </h4>
+
+                          {timelineMilestones.length === 0 ? (
+                            <div className="text-center py-12 text-white/40 font-mono text-xs">
+                              No milestone nodes recorded in Journey Log database. Use the compiler to push nodes.
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              {timelineMilestones.map((m) => (
+                                <div key={m.id} className="bg-[#050608] border border-white/5 p-4 flex justify-between items-start gap-4 hover:border-[#adc6ff]/20 transition-all">
+                                  <div className="space-y-1 text-left flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-base shrink-0">{m.icon}</span>
+                                      <span className="font-mono text-[9px] text-[#c3f400] bg-[#c3f400]/5 border border-[#c3f400]/25 px-2 py-0.5 rounded font-bold">{m.date}</span>
+                                    </div>
+                                    <h5 className="font-sora text-xs font-bold text-white truncate mt-1">{m.title}</h5>
+                                    <p className="font-sans text-[11px] text-[#c1c6d7] leading-relaxed line-clamp-2 mt-1">{m.description}</p>
+                                  </div>
+
+                                  <div className="flex gap-2 shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => startEditTimelineMilestone(m)}
+                                      className="p-1.5 text-[#adc6ff] hover:text-white hover:bg-[#adc6ff]/10 rounded cursor-pointer"
+                                      title="Edit Milestone"
+                                    >
+                                      <Edit3 className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteTimelineMilestone(m.id)}
+                                      className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded cursor-pointer"
+                                      title="Delete Milestone"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {activeTab === "about" && (
+                      <div className="bg-black/20 border border-white/5 p-6 text-left animate-fade-in max-w-4xl mx-auto">
+                        <div className="flex justify-between items-center border-b border-white/5 pb-3 mb-6">
+                          <h4 className="font-sora text-xs font-bold text-[#c3f400] uppercase tracking-wider flex items-center gap-2">
+                            <User className="w-4 h-4 text-[#c3f400]" />
+                            Configure Biography & Core Philosophy
+                          </h4>
+                          <span className="font-mono text-[8px] text-[#adc6ff]/60 uppercase">
+                            Admin Compiler
+                          </span>
+                        </div>
+
+                        <form onSubmit={handleSaveAbout} className="space-y-6">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-1.5">
+                              <label className="block font-mono text-[8px] text-white/40 uppercase">Biography dossier title *</label>
+                              <input
+                                type="text"
+                                required
+                                value={aboutForm.bio_title || ""}
+                                onChange={(e) => setAboutForm({ ...aboutForm, bio_title: e.target.value })}
+                                placeholder="Biography dossier"
+                                className="w-full bg-[#050608] border border-white/10 px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#c3f400]"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="block font-mono text-[8px] text-white/40 uppercase">Biography dossier subtitle *</label>
+                              <input
+                                type="text"
+                                required
+                                value={aboutForm.bio_subtitle || ""}
+                                onChange={(e) => setAboutForm({ ...aboutForm, bio_subtitle: e.target.value })}
+                                placeholder="Turning Ideas Into Scalable Software & Intelligent Solutions"
+                                className="w-full bg-[#050608] border border-white/10 px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#c3f400]"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="block font-mono text-[8px] text-white/40 uppercase">Biography paragraphs dossier * (One paragraph per line)</label>
+                            <p className="font-sans text-[10px] text-white/30 leading-relaxed mb-1">
+                              Write each paragraph of your biography on a separate line. The system automatically maps these into animated high-contrast page elements.
+                            </p>
+                            <textarea
+                              required
+                              value={aboutParagraphsText}
+                              onChange={(e) => setAboutParagraphsText(e.target.value)}
+                              placeholder="Write paragraph 1...\nWrite paragraph 2..."
+                              rows={8}
+                              className="w-full bg-[#050608] border border-white/10 px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#c3f400] leading-relaxed"
+                            />
+                          </div>
+
+                          <div className="border-t border-white/5 pt-6 space-y-4">
+                            <h5 className="font-sora text-[11px] font-bold text-[#adc6ff] uppercase tracking-wide">Philosophy Quote Accent</h5>
+                            
+                            <div className="space-y-1.5">
+                              <label className="block font-mono text-[8px] text-white/40 uppercase">Engineering philosophy quote *</label>
+                              <textarea
+                                required
+                                value={aboutForm.philosophy_quote || ""}
+                                onChange={(e) => setAboutForm({ ...aboutForm, philosophy_quote: e.target.value })}
+                                placeholder="My goal is not just to write code, but to build technology that..."
+                                rows={3}
+                                className="w-full bg-[#050608] border border-white/10 px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#c3f400] italic"
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div className="space-y-1.5">
+                                <label className="block font-mono text-[8px] text-white/40 uppercase">Philosophy Quote Author *</label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={aboutForm.philosophy_author || ""}
+                                  onChange={(e) => setAboutForm({ ...aboutForm, philosophy_author: e.target.value })}
+                                  placeholder="Mukteswar Gochhayat"
+                                  className="w-full bg-[#050608] border border-white/10 px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#c3f400]"
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="block font-mono text-[8px] text-white/40 uppercase">Philosophy Quote Author Title *</label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={aboutForm.philosophy_title || ""}
+                                  onChange={(e) => setAboutForm({ ...aboutForm, philosophy_title: e.target.value })}
+                                  placeholder="Computer Science & Engineering Scholar"
+                                  className="w-full bg-[#050608] border border-white/10 px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#c3f400]"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex justify-end pt-4 border-t border-white/5">
+                            <button
+                              type="submit"
+                              disabled={isAboutSaving}
+                              className="bg-[#c3f400] hover:bg-white text-black font-mono text-[10px] uppercase font-black px-6 py-3 flex items-center gap-2 cursor-pointer shadow-[0_0_15px_rgba(195,244,0,0.15)] disabled:opacity-50"
+                            >
+                              {isAboutSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                              Update Profile Dossier & Philosophy
+                            </button>
+                          </div>
+                        </form>
                       </div>
                     )}
 
