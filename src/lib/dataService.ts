@@ -320,6 +320,42 @@ export interface AboutData {
   philosophy_quote: string;
   philosophy_author: string;
   philosophy_title: string;
+  id_card_image?: string;
+  id_card_images?: string[];
+  id_card_name?: string;
+  id_card_college?: string;
+  id_card_grad_year?: string;
+  id_card_role?: string;
+  id_card_extra?: string;
+  card_back_protocol?: string;
+  card_back_networks?: string;
+  card_back_paradigms?: string;
+  card_back_signature?: string;
+  card_back_core?: string;
+  card_back_temp?: string;
+}
+
+export async function uploadIdCardImage(fileName: string, fileData: string): Promise<{ success: boolean; url?: string; error?: string }> {
+  const token = getStoredToken();
+  if (!token) return { success: false, error: "Authentication required." };
+  try {
+    const res = await fetch("/api/idcard/upload", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": token
+      },
+      body: JSON.stringify({ fileName, fileData })
+    });
+    const data = await res.json();
+    if (data.success && data.url) {
+      return { success: true, url: data.url };
+    }
+    return { success: false, error: data.error || "Upload failed." };
+  } catch (err: any) {
+    console.error("Error uploading ID card image to server:", err);
+    return { success: false, error: err.message || "Network error." };
+  }
 }
 
 export interface TimelineMilestone {

@@ -4,11 +4,16 @@ import { motion, AnimatePresence } from "motion/react";
 
 interface HeaderProps {
   onContactClick: () => void;
+  activeTab?: string;
+  setActiveTab?: (tab: string) => void;
+  isMobile?: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onContactClick }) => {
+export const Header: React.FC<HeaderProps> = ({ onContactClick, activeTab, setActiveTab, isMobile }) => {
   const [activeItem, setActiveItem] = useState("Home");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const currentActive = isMobile && activeTab ? activeTab : activeItem;
 
   const menuItems = [
     { label: "Home", href: "#" },
@@ -57,20 +62,32 @@ export const Header: React.FC<HeaderProps> = ({ onContactClick }) => {
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string, label: string) => {
     e.preventDefault();
-    setActiveItem(label);
     setIsMobileMenuOpen(false);
     
-    if (href === "#") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
+    if (isMobile && setActiveTab) {
+      if (label === "Contact") {
+        const el = document.getElementById("uplink-section");
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth" });
+        }
+      } else {
+        setActiveTab(label);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
     } else {
-      const el = document.getElementById(href.replace("#", ""));
-      if (el) {
-        const offset = 90; // account for header
-        const elementPosition = el.getBoundingClientRect().top + window.scrollY;
-        window.scrollTo({
-          top: elementPosition - offset,
-          behavior: "smooth"
-        });
+      setActiveItem(label);
+      if (href === "#") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } else {
+        const el = document.getElementById(href.replace("#", ""));
+        if (el) {
+          const offset = 90; // account for header
+          const elementPosition = el.getBoundingClientRect().top + window.scrollY;
+          window.scrollTo({
+            top: elementPosition - offset,
+            behavior: "smooth"
+          });
+        }
       }
     }
   };
@@ -96,7 +113,7 @@ export const Header: React.FC<HeaderProps> = ({ onContactClick }) => {
         {/* Navigation Links - Desktop and Laptop */}
         <nav className="hidden lg:flex gap-8 items-center">
           {menuItems.map((item) => {
-            const isActive = activeItem === item.label;
+            const isActive = currentActive === item.label;
             return (
               <a 
                 key={item.label}
@@ -165,7 +182,7 @@ export const Header: React.FC<HeaderProps> = ({ onContactClick }) => {
           >
             <div className="flex flex-col gap-1.5">
               {menuItems.map((item, index) => {
-                const isActive = activeItem === item.label;
+                const isActive = currentActive === item.label;
                 return (
                   <motion.a
                     initial={{ opacity: 0, x: -10 }}

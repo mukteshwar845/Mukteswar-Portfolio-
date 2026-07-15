@@ -303,7 +303,7 @@ export const CredentialsShowcase: React.FC<CredentialsShowcaseProps> = ({ creden
     return () => clearInterval(timer);
   }, []);
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleMouseMove = (e: React.MouseEvent | React.PointerEvent) => {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     setMousePosition({
@@ -312,7 +312,7 @@ export const CredentialsShowcase: React.FC<CredentialsShowcaseProps> = ({ creden
     });
   };
 
-  const handleFeaturedMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleFeaturedMouseMove = (e: React.MouseEvent<HTMLDivElement> | React.PointerEvent<HTMLDivElement>) => {
     const card = e.currentTarget;
     const rect = card.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -378,7 +378,7 @@ export const CredentialsShowcase: React.FC<CredentialsShowcaseProps> = ({ creden
   return (
     <div 
       ref={containerRef}
-      onMouseMove={handleMouseMove}
+      onPointerMove={handleMouseMove}
       className="relative text-zinc-300 space-y-20 selection:bg-[#c3f400]/20 selection:text-white"
       id="credentials-trophy-room-container"
     >
@@ -513,11 +513,11 @@ export const CredentialsShowcase: React.FC<CredentialsShowcaseProps> = ({ creden
 
           <motion.div
             id="featured-achievement-card-3d"
-            onMouseMove={handleFeaturedMouseMove}
-            onMouseLeave={handleFeaturedMouseLeave}
+            onPointerMove={handleFeaturedMouseMove}
+            onPointerLeave={handleFeaturedMouseLeave}
             style={tiltStyle}
             onClick={() => setSelectedAchievement(NEW_ACHIEVEMENTS_DATA[0])}
-            className="relative cursor-pointer group bg-[#050609]/80 border border-purple-500/10 hover:border-purple-500/35 p-6 lg:p-8 flex flex-col justify-between overflow-hidden shadow-[0_10px_40px_rgba(0,0,0,0.6)] backdrop-blur-md h-full"
+            className="relative cursor-pointer group bg-[#050609]/80 border border-purple-500/10 hover:border-purple-500/35 p-6 lg:p-8 flex flex-col justify-between overflow-hidden shadow-[0_10px_40px_rgba(0,0,0,0.6)] backdrop-blur-md h-full touch-pan-y"
           >
             {/* Visual Particle / Aurora blob inside featured card */}
             <div className="absolute top-0 right-0 w-80 h-80 bg-purple-500/10 rounded-full blur-[100px] pointer-events-none group-hover:bg-[#c3f400]/10 transition-all duration-500 -z-10" />

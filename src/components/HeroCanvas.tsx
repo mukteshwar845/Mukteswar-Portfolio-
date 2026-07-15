@@ -48,10 +48,25 @@ export const HeroCanvas: React.FC<HeroCanvasProps> = ({ onMouseMove }) => {
     resize();
     window.addEventListener("resize", resize);
 
-    const handleMouseMove = (e: MouseEvent) => {
+    const handleMouseMove = (e: MouseEvent | TouchEvent) => {
       const rect = canvas.getBoundingClientRect();
-      const currentX = e.clientX - rect.left;
-      const currentY = e.clientY - rect.top;
+      let clientX = 0;
+      let clientY = 0;
+
+      if ("touches" in e) {
+        if (e.touches && e.touches[0]) {
+          clientX = e.touches[0].clientX;
+          clientY = e.touches[0].clientY;
+        } else {
+          return;
+        }
+      } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      }
+
+      const currentX = clientX - rect.left;
+      const currentY = clientY - rect.top;
 
       mouse.targetX = currentX;
       mouse.targetY = currentY;
@@ -89,6 +104,8 @@ export const HeroCanvas: React.FC<HeroCanvasProps> = ({ onMouseMove }) => {
     };
 
     canvas.addEventListener("mousemove", handleMouseMove);
+    canvas.addEventListener("touchmove", handleMouseMove, { passive: true });
+    canvas.addEventListener("touchstart", handleMouseMove, { passive: true });
 
     // Animation Loop
     const render = () => {
@@ -257,6 +274,8 @@ export const HeroCanvas: React.FC<HeroCanvasProps> = ({ onMouseMove }) => {
       window.removeEventListener("resize", resize);
       if (canvas) {
         canvas.removeEventListener("mousemove", handleMouseMove);
+        canvas.removeEventListener("touchmove", handleMouseMove);
+        canvas.removeEventListener("touchstart", handleMouseMove);
       }
     };
   }, [onMouseMove, hoveredNode]);

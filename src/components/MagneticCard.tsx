@@ -29,14 +29,14 @@ export const MagneticCard: React.FC<MagneticCardProps> = ({ children, onClick, c
   const tiltX = useSpring(rotateX, springConfig);
   const tiltY = useSpring(rotateY, springConfig);
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!cardRef.current) return;
 
     const rect = cardRef.current.getBoundingClientRect();
     const width = rect.width;
     const height = rect.height;
 
-    // Mouse position relative to card boundaries
+    // Pointer position relative to card boundaries
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
 
@@ -60,11 +60,11 @@ export const MagneticCard: React.FC<MagneticCardProps> = ({ children, onClick, c
     rotateY.set(relativeX * maxTilt);
   };
 
-  const handleMouseEnter = () => {
+  const handlePointerEnter = () => {
     setIsHovered(true);
   };
 
-  const handleMouseLeave = () => {
+  const handlePointerLeave = () => {
     setIsHovered(false);
     x.set(0);
     y.set(0);
@@ -75,13 +75,14 @@ export const MagneticCard: React.FC<MagneticCardProps> = ({ children, onClick, c
   return (
     <div
       ref={cardRef}
-      onMouseMove={handleMouseMove}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+      onPointerMove={handlePointerMove}
+      onPointerEnter={handlePointerEnter}
+      onPointerLeave={handlePointerLeave}
       onClick={onClick}
       className={`relative select-none ${className || ""}`}
       style={{
         perspective: "1000px",
+        WebkitPerspective: "1000px",
       }}
     >
       <motion.div
@@ -91,6 +92,7 @@ export const MagneticCard: React.FC<MagneticCardProps> = ({ children, onClick, c
           rotateX: tiltX,
           rotateY: tiltY,
           transformStyle: "preserve-3d",
+          WebkitTransformStyle: "preserve-3d",
         }}
         className="w-full h-full relative transition-shadow duration-300 rounded-xl"
       >

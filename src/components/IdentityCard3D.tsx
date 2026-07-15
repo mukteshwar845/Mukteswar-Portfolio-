@@ -1,7 +1,21 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { BadgeCheck, ShieldAlert, Cpu, Fingerprint } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 
-export const IdentityCard3D: React.FC = () => {
+interface IdentityCard3DProps {
+  aboutData?: {
+    id_card_image?: string;
+    id_card_images?: string[];
+    card_back_protocol?: string;
+    card_back_networks?: string;
+    card_back_paradigms?: string;
+    card_back_signature?: string;
+    card_back_core?: string;
+    card_back_temp?: string;
+  } | null;
+}
+
+export const IdentityCard3D: React.FC<IdentityCard3DProps> = ({ aboutData }) => {
   const [rotateX, setRotateX] = useState(0);
   const [rotateY, setRotateY] = useState(0);
   const [glarePosition, setGlarePosition] = useState({ x: 50, y: 50 });
@@ -10,13 +24,110 @@ export const IdentityCard3D: React.FC = () => {
   const [isFlipped, setIsFlipped] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [direction, setDirection] = useState(1);
+
+  const images = aboutData?.id_card_images && aboutData.id_card_images.length > 0
+    ? aboutData.id_card_images
+    : (aboutData?.id_card_image ? [aboutData.id_card_image] : []);
+
+  useEffect(() => {
+    setCurrentImageIndex(0);
+  }, [images.length]);
+
+  useEffect(() => {
+    if (images.length <= 1) return;
+    const timer = setInterval(() => {
+      setDirection(1);
+      setCurrentImageIndex(prev => (prev + 1) % images.length);
+    }, 4500);
+    return () => clearInterval(timer);
+  }, [images.length]);
+
+  const slideVariants = {
+    enter: (dir: number) => ({
+      rotateY: dir > 0 ? 90 : -90,
+      opacity: 0,
+      scale: 0.9,
+    }),
+    center: {
+      rotateY: 0,
+      opacity: 1,
+      scale: 1,
+      transition: {
+        duration: 0.6,
+        ease: [0.16, 1, 0.3, 1],
+      },
+    },
+    exit: (dir: number) => ({
+      rotateY: dir < 0 ? 90 : -90,
+      opacity: 0,
+      scale: 0.9,
+      transition: {
+        duration: 0.6,
+        ease: [0.16, 1, 0.3, 1],
+      },
+    }),
+  };
+
+  // Device orientation (gyroscope) tracking for real physical tilting on mobile
+  useEffect(() => {
+    let hasPointerActivity = false;
+
+    // We only tilt via gyroscope if the user is not actively dragging/touching the card
+    const handleOrientation = (e: DeviceOrientationEvent) => {
+      if (hasPointerActivity) return;
+      if (e.gamma === null || e.beta === null) return;
+
+      // gamma is left-to-right tilt in degrees [-90, 90]
+      // beta is front-to-back tilt in degrees [-180, 180]
+      // Limit to comfortable visual angles (max 15 degrees)
+      const tiltY = Math.max(-15, Math.min(15, e.gamma * 0.4));
+      // Assume typical comfortable phone viewing angle of 45 degrees
+      const tiltX = Math.max(-15, Math.min(15, (e.beta - 45) * 0.4));
+
+      setRotateX(tiltX);
+      setRotateY(tiltY);
+      setGlarePosition({ x: 50 + tiltY * 2.5, y: 50 - tiltX * 2.5 });
+      setGlareOpacity(0.2);
+    };
+
+    window.addEventListener("deviceorientation", handleOrientation);
+
+    // Listener to pause gyro tracking briefly when user touches the card
+    const handlePointerActive = () => {
+      hasPointerActivity = true;
+    };
+    const handlePointerInactive = () => {
+      setTimeout(() => {
+        hasPointerActivity = false;
+      }, 1000);
+    };
+
+    const cardEl = cardRef.current;
+    if (cardEl) {
+      cardEl.addEventListener("pointerdown", handlePointerActive);
+      cardEl.addEventListener("pointerup", handlePointerInactive);
+      cardEl.addEventListener("pointercancel", handlePointerInactive);
+    }
+
+    return () => {
+      window.removeEventListener("deviceorientation", handleOrientation);
+      if (cardEl) {
+        cardEl.removeEventListener("pointerdown", handlePointerActive);
+        cardEl.removeEventListener("pointerup", handlePointerInactive);
+        cardEl.removeEventListener("pointercancel", handlePointerInactive);
+      }
+    };
+  }, []);
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!cardRef.current) return;
     const rect = cardRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    // Normalize mouse position between 0 and 1
+    // Normalize pointer position between 0 and 1
     const xPct = x / rect.width;
     const yPct = y / rect.height;
 
@@ -30,14 +141,14 @@ export const IdentityCard3D: React.FC = () => {
     setGlareOpacity(0.35);
   };
 
-  const handleMouseLeave = () => {
+  const handlePointerLeave = () => {
     setRotateX(0);
     setRotateY(0);
     setGlareOpacity(0);
     setIsHovered(false);
   };
 
-  const handleMouseEnter = () => {
+  const handlePointerEnter = () => {
     setIsHovered(true);
   };
 
@@ -45,19 +156,17 @@ export const IdentityCard3D: React.FC = () => {
     setIsFlipped(prev => !prev);
   };
 
-  const frontImage = "https://avatars.githubusercontent.com/u/265782778?v=4"; // Mukteswar actual face
-
   return (
-    <div className="w-full flex flex-col items-center select-none" id="id-card-3d-root">
+    <div className="w-full flex flex-col items-center select-none animate-fade-in-up" id="id-card-3d-root">
       
       {/* 3D Perspective Canvas Container */}
       <div
         ref={cardRef}
-        onMouseMove={handleMouseMove}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
+        onPointerMove={handlePointerMove}
+        onPointerEnter={handlePointerEnter}
+        onPointerLeave={handlePointerLeave}
         onClick={handleCardClick}
-        className="perspective-1000 w-[310px] sm:w-[340px] aspect-[1/1.55] cursor-pointer group relative active:scale-[0.98] transition-transform duration-300"
+        className="perspective-1000 w-[310px] sm:w-[340px] aspect-[1/1.55] cursor-pointer group relative active:scale-[0.98] transition-transform duration-300 touch-none"
         id="card-perspective-container"
       >
         {/* Card Wrapper (Preserves 3D space, handles Y-rotation flip and mouse hover tilts) */}
@@ -73,7 +182,7 @@ export const IdentityCard3D: React.FC = () => {
         >
           {/* ==================== CARD FRONT FACE ==================== */}
           <div 
-            className="absolute inset-0 w-full h-full rounded-[2rem] border border-white/10 bg-gradient-to-b from-zinc-900/95 via-zinc-950/98 to-black p-5 flex flex-col justify-between overflow-hidden backface-hidden"
+            className="absolute inset-0 w-full h-full rounded-[2rem] border border-white/10 bg-gradient-to-b from-zinc-900/95 via-zinc-950/98 to-black overflow-hidden backface-hidden"
             id="card-front-face"
           >
             {/* Ambient Background Grid Pattern */}
@@ -90,36 +199,92 @@ export const IdentityCard3D: React.FC = () => {
               }}
             />
 
-            {/* Portrait display with Laser scanning line */}
+            {/* Floating Top Identity Header */}
+            <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-25 pointer-events-none">
+              <span className="font-mono text-[7px] tracking-widest text-[#adc6ff] font-bold uppercase bg-black/60 backdrop-blur-md px-2.5 py-1 border border-white/10 rounded-full">
+                BIOMETRIC PORTRAIT
+              </span>
+              <span className="font-mono text-[7px] text-[#c3f400] font-bold bg-black/60 backdrop-blur-md px-2 py-1 border border-white/10 rounded-full">
+                {images.length > 0 ? `IMG 0${currentImageIndex + 1}` : "OFFLINE"}
+              </span>
+            </div>
+
+            {/* Portrait display (full screen size of front card) */}
             <div 
-              className="relative w-full h-full rounded-2xl border border-white/10 bg-zinc-950/60 overflow-hidden group/portrait mt-2 flex flex-col items-center justify-center"
+              className="w-full h-full relative flex flex-col items-center justify-center"
               id="front-portrait-container"
             >
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950/85">
-                <div className="relative">
-                  <Fingerprint className="w-16 h-16 text-indigo-400/80 group-hover/portrait:text-[#c3f400] transition-colors duration-300" />
-                  <div className="absolute inset-0 bg-indigo-500/10 rounded-full blur-xl scale-125 group-hover/portrait:bg-[#c3f400]/10 transition-colors duration-300" />
+              {images.length > 0 ? (
+                <div className="absolute inset-0 w-full h-full overflow-hidden">
+                  <AnimatePresence initial={false} custom={direction}>
+                    <motion.div
+                      key={currentImageIndex}
+                      custom={direction}
+                      variants={slideVariants}
+                      initial="enter"
+                      animate="center"
+                      exit="exit"
+                      className="absolute inset-0 w-full h-full"
+                      style={{ backfaceVisibility: "hidden" }}
+                    >
+                      <img 
+                        src={images[currentImageIndex]} 
+                        alt={`Identity Portrait ${currentImageIndex + 1}`} 
+                        className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+                        referrerPolicy="no-referrer"
+                      />
+                    </motion.div>
+                  </AnimatePresence>
+                  
+                  {/* Holographic / Cyber scanning overlay effect */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-indigo-500/5 mix-blend-overlay pointer-events-none z-10" />
+                  
+                  {/* Dot pagination indicator */}
+                  {images.length > 1 && (
+                    <div className="absolute bottom-4 right-4 flex gap-1.5 z-20 bg-black/75 px-2 py-1.5 rounded-full backdrop-blur-sm border border-white/10">
+                      {images.map((_, i) => (
+                        <button
+                          key={i}
+                          onClick={(e) => {
+                            e.stopPropagation(); // Don't flip the 3D card
+                            setDirection(i > currentImageIndex ? 1 : -1);
+                            setCurrentImageIndex(i);
+                          }}
+                          className={`w-1.5 h-1.5 rounded-full transition-all ${
+                            i === currentImageIndex ? "bg-[#c3f400] w-3" : "bg-white/30 hover:bg-white/60"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <span className="font-mono text-[7px] text-indigo-300/60 mt-3 tracking-widest uppercase animate-pulse">
-                  BIOMETRIC IDENTITY LOADED
-                </span>
-              </div>
+              ) : (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950/85">
+                  <div className="relative">
+                    <Fingerprint className="w-16 h-16 text-indigo-400/80 group-hover:text-[#c3f400] transition-colors duration-300 animate-pulse" />
+                    <div className="absolute inset-0 bg-indigo-500/10 rounded-full blur-xl scale-125 group-hover:bg-[#c3f400]/10 transition-colors duration-300" />
+                  </div>
+                  <span className="font-mono text-[8px] text-indigo-300/60 mt-3 tracking-widest uppercase animate-pulse">
+                    NO BIOMETRIC PICTURES
+                  </span>
+                </div>
+              )}
 
               {/* Laser Scanner animation overlay */}
               {isHovered && !isFlipped && (
-                <div className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-indigo-400 to-transparent shadow-[0_0_8px_rgba(99,102,241,0.8)] z-10 animate-[scanner_2.5s_ease-in-out_infinite]" />
+                <div className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#c3f400] to-transparent shadow-[0_0_12px_#c3f400] z-20 animate-[scanner_2.5s_ease-in-out_infinite]" />
               )}
 
-              {/* Tag designation overlay */}
-              <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-md px-2 py-0.5 rounded border border-white/5 text-[7px] font-mono font-bold text-indigo-300 tracking-widest uppercase">
-                PORTRAIT // COGNITIVE
+              {/* Tag designation overlay floating bottom-left */}
+              <div className="absolute bottom-4 left-4 bg-black/75 backdrop-blur-md px-2.5 py-1 rounded border border-white/10 text-[7px] font-mono font-bold text-[#adc6ff] tracking-widest uppercase z-15">
+                SYSTEM PORTRAIT // REALTIME
               </div>
             </div>
           </div>
 
           {/* ==================== CARD BACK FACE ==================== */}
           <div 
-            className="absolute inset-0 w-full h-full rounded-[2rem] border border-white/10 bg-gradient-to-b from-zinc-950 via-black to-[#05050c] p-5 flex flex-col justify-between overflow-hidden backface-hidden rotate-y-180"
+            className="absolute inset-0 w-full h-full rounded-[2rem] border border-white/10 bg-gradient-to-b from-zinc-950 via-black to-[#05050c] p-4 flex flex-col justify-between backface-hidden rotate-y-180"
             id="card-back-face"
           >
             {/* Ambient Background Grid Pattern */}
@@ -136,7 +301,7 @@ export const IdentityCard3D: React.FC = () => {
             />
 
             {/* Top Bar */}
-            <div className="flex justify-between items-center relative z-10">
+            <div className="flex justify-between items-center relative z-10 shrink-0">
               <span className="font-mono text-[8px] tracking-widest text-[#c3f400] font-bold uppercase bg-[#c3f400]/10 px-2 py-0.5 border border-[#c3f400]/20 rounded">
                 DECRYPT CONSOLE
               </span>
@@ -145,59 +310,108 @@ export const IdentityCard3D: React.FC = () => {
               </span>
             </div>
 
-            {/* Circular Biometric Scanner Area */}
-            <div 
-              className="w-24 h-24 rounded-full border border-indigo-500/30 bg-indigo-500/5 flex items-center justify-center relative group/scanner overflow-hidden mx-auto my-4 shrink-0"
-              id="back-portrait-container"
-            >
-              {/* Pulse waves */}
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-500/20 via-transparent to-transparent opacity-50 group-hover/scanner:opacity-80 transition-opacity" />
-              
-              {/* Biometric Scan Icon */}
-              <Fingerprint className="w-12 h-12 text-indigo-400 group-hover/scanner:text-[#c3f400] transition-colors relative z-10" />
-
-              {/* Laser Line animation */}
-              {isHovered && isFlipped && (
-                <div className="absolute left-0 right-0 h-0.5 bg-[#c3f400] shadow-[0_0_8px_#c3f400] z-20 animate-[scanner_2.5s_ease-in-out_infinite]" />
-              )}
+            {/* Header with fingerprint scanner & credential identifier */}
+            <div className="flex items-center gap-3 relative z-10 bg-black/40 border border-white/5 p-2 rounded-xl mt-1.5 shrink-0" id="back-portrait-container-parent">
+              {/* Circular Biometric Scanner Area with uploaded small picture */}
+              <div 
+                className="w-10 h-10 rounded-full border border-[#c3f400]/40 bg-zinc-950/80 flex items-center justify-center relative group/scanner overflow-hidden shrink-0 shadow-[0_0_8px_rgba(195,244,0,0.2)]"
+                id="back-portrait-container"
+              >
+                {images.length > 0 ? (
+                  <img
+                    src={images[currentImageIndex] || images[0]}
+                    alt="Biometric Portrait"
+                    className="w-full h-full object-cover rounded-full"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <Fingerprint className="w-5 h-5 text-[#c3f400] group-hover/scanner:scale-105 transition-transform" />
+                )}
+                
+                {/* Laser Line animation */}
+                {isHovered && isFlipped && (
+                  <div className="absolute left-0 right-0 h-0.5 bg-[#c3f400] shadow-[0_0_8px_#c3f400] z-20 animate-[scanner_2.5s_ease-in-out_infinite]" />
+                )}
+              </div>
+              <div className="text-left font-mono min-w-0 flex-1">
+                <span className="text-[5.5px] text-zinc-500 uppercase block tracking-wider">SECURE LINK STATUS</span>
+                <span className="text-[8px] font-bold text-[#c3f400] block truncate tracking-wider uppercase">
+                  IDENTITY CONNECTED
+                </span>
+                <span className="text-[7px] text-[#adc6ff] block font-semibold truncate mt-0.5 uppercase">
+                  {aboutData?.id_card_name || "Mukteswar Gochhayat"}
+                </span>
+              </div>
+              <BadgeCheck className="w-4 h-4 text-[#c3f400] drop-shadow-[0_0_4px_rgba(195,244,0,0.4)] shrink-0" />
             </div>
 
-            {/* Experience Dossier Console Fields */}
-            <div className="space-y-2 font-mono text-[8px] text-zinc-400 text-left bg-black/50 border border-white/5 p-4 rounded-xl relative z-10">
-              <div className="flex justify-between border-b border-white/5 pb-1">
-                <span>HARDWARE PROTOCOL</span>
-                <span className="text-white font-bold">MUKTESWAR-V3</span>
+            {/* Personal Details Section */}
+            <div className="space-y-1.5 font-mono text-left bg-black/40 border border-white/5 p-2.5 rounded-xl relative z-10 mt-1 shrink-0">
+              <div>
+                <span className="text-[5.5px] text-zinc-500 uppercase block tracking-wider">IDENT NAME</span>
+                <span className="text-xs font-bold text-white tracking-wide block leading-snug truncate">
+                  {aboutData?.id_card_name || "Mukteswar Gochhayat"}
+                </span>
               </div>
-              <div className="flex justify-between border-b border-white/5 pb-1">
-                <span>MAIN NETWORKS</span>
-                <span className="text-[#c3f400] font-bold">PYTHON & JAVA</span>
+
+              <div className="grid grid-cols-2 gap-2 border-t border-white/5 pt-1">
+                <div>
+                  <span className="text-[5.5px] text-zinc-500 uppercase block tracking-wider">COLLEGE / INSTITUTION</span>
+                  <span className="text-[8px] font-semibold text-zinc-300 block truncate">
+                    {aboutData?.id_card_college || "ITER, SOA University"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[5.5px] text-zinc-500 uppercase block tracking-wider">GRADUATION</span>
+                  <span className="text-[8px] font-semibold text-[#c3f400] block">
+                    {aboutData?.id_card_grad_year || "Class of 2026"}
+                  </span>
+                </div>
               </div>
-              <div className="flex justify-between border-b border-white/5 pb-1">
-                <span>PARADIGMS</span>
-                <span className="text-indigo-300 font-bold">DJANGO & REACT</span>
+
+              <div className="border-t border-white/5 pt-1">
+                <span className="text-[5.5px] text-zinc-500 uppercase block tracking-wider">ROLE / SPEC</span>
+                <span className="text-[8px] font-semibold text-indigo-300 block truncate">
+                  {aboutData?.id_card_role || "Full-Stack Software Engineer"}
+                </span>
               </div>
-              <div className="flex justify-between pb-0.5">
-                <span>SIGNATURE</span>
-                <span className="text-white font-bold">SHA-256: 0x937B...</span>
+            </div>
+
+            {/* Biographical Info Dossier & Philosophy Quote */}
+            <div className="space-y-1.5 font-mono text-left bg-black/60 border border-white/5 p-2.5 rounded-xl relative z-10 mt-1 flex-1 flex flex-col justify-center">
+              <div>
+                <span className="text-[5.5px] text-zinc-500 uppercase block tracking-wider">BIOGRAPHICAL DOSSIER</span>
+                <p className="text-[7.5px] text-zinc-300 leading-normal line-clamp-2">
+                  {aboutData?.philosophy_title || "Computer Science & Engineering Scholar specializing in secure architectures and modern responsive frameworks."}
+                </p>
+              </div>
+              <div className="border-t border-white/5 pt-1 mt-1">
+                <span className="text-[5.5px] text-[#c3f400] uppercase block tracking-wider">PHILOSOPHICAL QUOTE</span>
+                <p className="text-[7.5px] italic text-indigo-200 leading-normal line-clamp-2">
+                  "{aboutData?.philosophy_quote || "Empowering through secure, elegant, and modern engineering design."}"
+                </p>
+                <span className="text-[6px] text-zinc-500 block text-right mt-0.5">
+                  — {aboutData?.philosophy_author || "Mukteswar Gochhayat"}
+                </span>
               </div>
             </div>
 
             {/* Micro chips and telemetry visuals */}
-            <div className="flex justify-between items-center text-[7px] font-mono text-zinc-600 px-1 pt-1 border-t border-white/5 relative z-10">
+            <div className="flex justify-between items-center text-[7px] font-mono text-zinc-600 px-1 pt-1.5 border-t border-white/5 relative z-10 mt-1 shrink-0">
               <div className="flex items-center gap-1">
-                <Cpu className="w-3 h-3 text-zinc-500" />
-                <span>CORE: ARM64-NEON</span>
+                <Cpu className="w-3 h-3 text-zinc-500 animate-pulse" />
+                <span className="truncate max-w-[140px]">{aboutData?.card_back_core || "CORE: ARM64-NEON"}</span>
               </div>
-              <span>TEMP: 32°C // IDLE</span>
+              <span>{aboutData?.card_back_temp || "TEMP: 32°C // IDLE"}</span>
             </div>
 
-            {/* Bottom prompt */}
-            <div className="flex flex-col items-center gap-0.5 pt-2 border-t border-white/5 relative z-10">
+            {/* Bottom prompt and verification credentials */}
+            <div className="flex flex-col items-center gap-0.5 pt-1.5 border-t border-white/5 relative z-10 shrink-0">
               <span className="font-mono text-[8px] tracking-widest text-[#c3f400] font-bold uppercase animate-pulse">
-                AUTHORIZED ACCESS
+                AUTHORIZED ACCESS ONLY
               </span>
-              <span className="font-mono text-[6px] text-zinc-500 uppercase">
-                MUKTESWAR.DEV // CYBER SEC
+              <span className="font-mono text-[5.5px] text-zinc-500 uppercase truncate max-w-full">
+                {aboutData?.id_card_extra || "SECURE ACCESS LEVEL: A1 // REG: 2201201103"}
               </span>
             </div>
           </div>

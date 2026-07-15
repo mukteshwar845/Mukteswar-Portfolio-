@@ -229,7 +229,7 @@ export const PremiumFuturisticBackground: React.FC = () => {
     };
     window.addEventListener("resize", handleResize);
 
-    // Mouse coordinates filtered internally for soft lagging physics
+    // Mouse/Touch/Gyro coordinates filtered internally for soft lagging physics
     let currentMouseX = width / 2;
     let currentMouseY = height / 2;
     const targetMouse = { x: width / 2, y: height / 2 };
@@ -238,7 +238,29 @@ export const PremiumFuturisticBackground: React.FC = () => {
       targetMouse.x = e.clientX;
       targetMouse.y = e.clientY;
     };
+
+    const updateTouchPos = (e: TouchEvent) => {
+      if (e.touches && e.touches[0]) {
+        targetMouse.x = e.touches[0].clientX;
+        targetMouse.y = e.touches[0].clientY;
+      }
+    };
+
+    // Device orientation (gyroscope) tracking for ultra-premium mobile tilt
+    const handleOrientation = (e: DeviceOrientationEvent) => {
+      if (e.gamma !== null && e.beta !== null) {
+        // Limit tilt impact to a comfortable range
+        const mappedX = (e.gamma / 30) * (width * 0.1);
+        const mappedY = ((e.beta - 45) / 30) * (height * 0.1);
+        targetMouse.x = width / 2 + mappedX;
+        targetMouse.y = height / 2 + mappedY;
+      }
+    };
+
     window.addEventListener("mousemove", updateMousePos);
+    window.addEventListener("touchmove", updateTouchPos, { passive: true });
+    window.addEventListener("touchstart", updateTouchPos, { passive: true });
+    window.addEventListener("deviceorientation", handleOrientation);
 
     // Initial galactic orientation parameters
     let baseRotation = 0;
@@ -463,6 +485,9 @@ export const PremiumFuturisticBackground: React.FC = () => {
       window.removeEventListener("scroll", handleScroll);
       window.removeEventListener("resize", handleResize);
       window.removeEventListener("mousemove", updateMousePos);
+      window.removeEventListener("touchmove", updateTouchPos);
+      window.removeEventListener("touchstart", updateTouchPos);
+      window.removeEventListener("deviceorientation", handleOrientation);
       cancelAnimationFrame(animationFrameId);
     };
   }, [prefersReducedMotion]);

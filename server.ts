@@ -136,7 +136,20 @@ const DEFAULT_ABOUT_CONTENT = {
   ],
   philosophy_quote: "\"My goal is not just to write code, but to build technology that solves meaningful problems, creates value, and positively impacts people's lives.\"",
   philosophy_author: "Mukteswar Gochhayat",
-  philosophy_title: "Computer Science & Engineering Scholar"
+  philosophy_title: "Computer Science & Engineering Scholar",
+  id_card_image: "https://avatars.githubusercontent.com/u/265782778?v=4",
+  id_card_images: ["https://avatars.githubusercontent.com/u/265782778?v=4"],
+  id_card_name: "Mukteswar Gochhayat",
+  id_card_college: "ITER, SOA University",
+  id_card_grad_year: "Class of 2026",
+  id_card_role: "Full-Stack Software Engineer",
+  id_card_extra: "SECURE ACCESS LEVEL: A1 // REG: 2201201103",
+  card_back_protocol: "MUKTESWAR-V3",
+  card_back_networks: "PYTHON & JAVA",
+  card_back_paradigms: "DJANGO & REACT",
+  card_back_signature: "SHA-256: 0x937B...",
+  card_back_core: "CORE: ARM64-NEON",
+  card_back_temp: "TEMP: 32°C // IDLE"
 };
 
 // Default Timeline milestones
@@ -455,7 +468,7 @@ app.post("/api/skills", verifyAdmin, (req, res) => {
 app.get("/api/about", (req, res) => {
   try {
     const data = fs.readFileSync(ABOUT_FILE, "utf-8");
-    return res.json(JSON.parse(data));
+    return res.json({ ...DEFAULT_ABOUT_CONTENT, ...JSON.parse(data) });
   } catch (err) {
     return res.json(DEFAULT_ABOUT_CONTENT);
   }
@@ -641,6 +654,63 @@ app.get("/api/resume/download", (req, res) => {
     return res.send(DEFAULT_RESUME_CONTENT);
   } catch (err: any) {
     return res.status(500).send("Error reading resume file.");
+  }
+});
+
+// 5. PICTURE AND UPLOADS SERVING & UPLOADING ENDPOINTS
+app.get("/api/uploads/:filename", (req, res) => {
+  try {
+    const { filename } = req.params;
+    // Prevent directory traversal attacks
+    const safeFilename = filename.replace(/[^a-zA-Z0-9.\-_]/g, "");
+    const filePath = path.join(RESUME_UPLOAD_DIR, safeFilename);
+    if (fs.existsSync(filePath)) {
+      // Determine content type
+      const ext = path.extname(safeFilename).toLowerCase();
+      if (ext === ".png") {
+        res.setHeader("Content-Type", "image/png");
+      } else if (ext === ".jpg" || ext === ".jpeg") {
+        res.setHeader("Content-Type", "image/jpeg");
+      } else if (ext === ".gif") {
+        res.setHeader("Content-Type", "image/gif");
+      } else if (ext === ".svg") {
+        res.setHeader("Content-Type", "image/svg+xml");
+      } else if (ext === ".webp") {
+        res.setHeader("Content-Type", "image/webp");
+      } else {
+        res.setHeader("Content-Type", "application/octet-stream");
+      }
+      return res.sendFile(filePath);
+    }
+    return res.status(404).send("File not found");
+  } catch (err: any) {
+    return res.status(500).send("Error serving file.");
+  }
+});
+
+app.post("/api/idcard/upload", verifyAdmin, (req, res) => {
+  try {
+    const { fileName, fileData } = req.body;
+    if (!fileName || !fileData) {
+      return res.status(400).json({ error: "Missing fileName or fileData." });
+    }
+
+    // Parse base64 string
+    let base64Content = fileData;
+    if (fileData.includes(";base64,")) {
+      base64Content = fileData.split(";base64,").pop() || "";
+    }
+
+    const buffer = Buffer.from(base64Content, "base64");
+    // Generate a unique name for the uploaded ID card image
+    const safeFileName = "idcard_" + Date.now() + "_" + fileName.replace(/[^a-zA-Z0-9.\-_]/g, "");
+    const savePath = path.join(RESUME_UPLOAD_DIR, safeFileName);
+    fs.writeFileSync(savePath, buffer);
+
+    const imageUrl = `/api/uploads/${safeFileName}`;
+    return res.json({ success: true, url: imageUrl });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
   }
 });
 

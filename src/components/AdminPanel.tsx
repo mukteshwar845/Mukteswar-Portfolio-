@@ -44,6 +44,7 @@ import {
   ResumeData,
   getAbout,
   saveAbout,
+  uploadIdCardImage,
   getTimeline,
   saveTimelineMilestone,
   deleteTimelineMilestone,
@@ -146,11 +147,103 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onDataChange }) => {
     bio_subtitle: "Turning Ideas Into Scalable Software & Intelligent Solutions",
     philosophy_quote: "",
     philosophy_author: "Mukteswar Gochhayat",
-    philosophy_title: "Computer Science & Engineering Scholar"
+    philosophy_title: "Computer Science & Engineering Scholar",
+    id_card_image: "",
+    id_card_images: [],
+    id_card_name: "Mukteswar Gochhayat",
+    id_card_college: "ITER, SOA University",
+    id_card_grad_year: "Class of 2026",
+    id_card_role: "Full-Stack Software Engineer",
+    id_card_extra: "SECURE ACCESS LEVEL: A1 // REG: 2201201103",
+    card_back_protocol: "MUKTESWAR-V3",
+    card_back_networks: "PYTHON & JAVA",
+    card_back_paradigms: "DJANGO & REACT",
+    card_back_signature: "SHA-256: 0x937B...",
+    card_back_core: "CORE: ARM64-NEON",
+    card_back_temp: "TEMP: 32°C // IDLE"
   });
   const [aboutParagraphsText, setAboutParagraphsText] = useState("");
   const [isAboutSaving, setIsAboutSaving] = useState(false);
   const [isTimelineSaving, setIsTimelineSaving] = useState(false);
+  
+  // Image uploading states & handlers
+  const [isImageUploading, setIsImageUploading] = useState(false);
+  const [imageUploadError, setImageUploadError] = useState("");
+
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsImageUploading(true);
+    setImageUploadError("");
+    addLog(`Processing ${files.length} selected portrait files...`);
+
+    const uploadedUrls: string[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (file.size > 5 * 1024 * 1024) {
+        addLog(`⚠️ File "${file.name}" rejected: Size exceeds 5MB.`);
+        continue;
+      }
+
+      addLog(`Uploading [${i + 1}/${files.length}] "${file.name}"...`);
+
+      try {
+        const base64Content = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error("Failed to read file"));
+          reader.readAsDataURL(file);
+        });
+
+        const result = await uploadIdCardImage(file.name, base64Content);
+        if (result.success && result.url) {
+          uploadedUrls.push(result.url);
+          addLog(`Uploaded: ${file.name} -> ${result.url}`);
+        } else {
+          addLog(`❌ Upload failed for "${file.name}": ${result.error || "Rejected"}`);
+        }
+      } catch (err: any) {
+        addLog(`❌ Exception for "${file.name}": ${err.message}`);
+      }
+    }
+
+    setIsImageUploading(false);
+
+    if (uploadedUrls.length > 0) {
+      setAboutForm(prev => {
+        const existingImages = prev.id_card_images || (prev.id_card_image ? [prev.id_card_image] : []);
+        const newImages = [...existingImages, ...uploadedUrls];
+        return {
+          ...prev,
+          id_card_image: prev.id_card_image || uploadedUrls[0],
+          id_card_images: newImages
+        };
+      });
+      addLog(`Uplink completed. Added ${uploadedUrls.length} images to form state.`);
+    } else {
+      setImageUploadError("All image uploads failed.");
+    }
+  };
+
+  const handleRemoveImageAtIndex = (index: number) => {
+    setAboutForm(prev => {
+      const images = prev.id_card_images || [];
+      const newImages = images.filter((_, i) => i !== index);
+      return {
+        ...prev,
+        id_card_image: newImages[0] || "",
+        id_card_images: newImages
+      };
+    });
+    addLog(`Removed picture at index ${index}.`);
+  };
+
+  const handleRemoveImage = () => {
+    setAboutForm(prev => ({ ...prev, id_card_image: "", id_card_images: [] }));
+    addLog("All profile pictures cleared from form.");
+  };
 
   // Load datasets
   const loadAllData = async () => {
@@ -178,7 +271,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onDataChange }) => {
           bio_subtitle: ab.bio_subtitle || "Turning Ideas Into Scalable Software & Intelligent Solutions",
           philosophy_quote: ab.philosophy_quote || "",
           philosophy_author: ab.philosophy_author || "Mukteswar Gochhayat",
-          philosophy_title: ab.philosophy_title || "Computer Science & Engineering Scholar"
+          philosophy_title: ab.philosophy_title || "Computer Science & Engineering Scholar",
+          id_card_image: ab.id_card_image || "",
+          id_card_images: ab.id_card_images || (ab.id_card_image ? [ab.id_card_image] : []),
+          id_card_name: ab.id_card_name || "Mukteswar Gochhayat",
+          id_card_college: ab.id_card_college || "ITER, SOA University",
+          id_card_grad_year: ab.id_card_grad_year || "Class of 2026",
+          id_card_role: ab.id_card_role || "Full-Stack Software Engineer",
+          id_card_extra: ab.id_card_extra || "SECURE ACCESS LEVEL: A1 // REG: 2201201103",
+          card_back_protocol: ab.card_back_protocol || "MUKTESWAR-V3",
+          card_back_networks: ab.card_back_networks || "PYTHON & JAVA",
+          card_back_paradigms: ab.card_back_paradigms || "DJANGO & REACT",
+          card_back_signature: ab.card_back_signature || "SHA-256: 0x937B...",
+          card_back_core: ab.card_back_core || "CORE: ARM64-NEON",
+          card_back_temp: ab.card_back_temp || "TEMP: 32°C // IDLE"
         });
       }
       setTimelineMilestones(tl || []);
@@ -485,7 +591,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onDataChange }) => {
       bio_paragraphs: paragraphsArray,
       philosophy_quote: aboutForm.philosophy_quote || "",
       philosophy_author: aboutForm.philosophy_author || "Mukteswar Gochhayat",
-      philosophy_title: aboutForm.philosophy_title || "Computer Science & Engineering Scholar"
+      philosophy_title: aboutForm.philosophy_title || "Computer Science & Engineering Scholar",
+      id_card_image: aboutForm.id_card_image || "",
+      id_card_images: aboutForm.id_card_images || [],
+      id_card_name: aboutForm.id_card_name || "Mukteswar Gochhayat",
+      id_card_college: aboutForm.id_card_college || "ITER, SOA University",
+      id_card_grad_year: aboutForm.id_card_grad_year || "Class of 2026",
+      id_card_role: aboutForm.id_card_role || "Full-Stack Software Engineer",
+      id_card_extra: aboutForm.id_card_extra || "SECURE ACCESS LEVEL: A1 // REG: 2201201103",
+      card_back_protocol: aboutForm.card_back_protocol || "MUKTESWAR-V3",
+      card_back_networks: aboutForm.card_back_networks || "PYTHON & JAVA",
+      card_back_paradigms: aboutForm.card_back_paradigms || "DJANGO & REACT",
+      card_back_signature: aboutForm.card_back_signature || "SHA-256: 0x937B...",
+      card_back_core: aboutForm.card_back_core || "CORE: ARM64-NEON",
+      card_back_temp: aboutForm.card_back_temp || "TEMP: 32°C // IDLE"
     };
 
     const success = await saveAbout(payload);
@@ -1463,6 +1582,230 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onDataChange }) => {
                                 placeholder="Turning Ideas Into Scalable Software & Intelligent Solutions"
                                 className="w-full bg-[#050608] border border-white/10 px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#c3f400]"
                               />
+                            </div>
+                          </div>
+
+                          {/* ID Card 3D Picture Upload */}
+                          <div className="border-t border-white/5 pt-6 space-y-4">
+                            <h5 className="font-sora text-[11px] font-bold text-[#adc6ff] uppercase tracking-wide">3D Identity Card Profile Portrait (Multi-Image Rotation)</h5>
+                            <p className="font-sans text-[10px] text-white/30 leading-relaxed">
+                              Upload multiple portrait images that automatically cycle one by one with a futuristic 3D transition effect!
+                            </p>
+
+                            <div className="space-y-4">
+                              <div className="space-y-1.5">
+                                <label className="block font-mono text-[8px] text-white/40 uppercase">Upload One or More Portrait Files</label>
+                                <div className="flex flex-wrap items-center gap-3">
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    onChange={handleImageFileChange}
+                                    className="hidden"
+                                    id="id-card-photo-input"
+                                    disabled={isImageUploading}
+                                  />
+                                  <label
+                                    htmlFor="id-card-photo-input"
+                                    className="bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 text-xs font-mono text-white rounded cursor-pointer transition-colors flex items-center gap-2"
+                                  >
+                                    {isImageUploading ? (
+                                      <>
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#c3f400]" />
+                                        UPLOADING MULTI...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Plus className="w-3.5 h-3.5 text-[#c3f400]" />
+                                        UPLOAD PHOTOS
+                                      </>
+                                    )}
+                                  </label>
+                                  
+                                  {(aboutForm.id_card_images && aboutForm.id_card_images.length > 0) && (
+                                    <button
+                                      type="button"
+                                      onClick={handleRemoveImage}
+                                      className="bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 px-3 py-2 text-[10px] font-mono uppercase tracking-wider rounded transition-colors flex items-center gap-1.5"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                      CLEAR ALL PICTURES
+                                    </button>
+                                  )}
+                                </div>
+                                {imageUploadError && (
+                                  <p className="text-red-400 font-mono text-[9px] mt-1 uppercase">⚠️ {imageUploadError}</p>
+                                )}
+                              </div>
+
+                              {/* Dynamic Picture List Preview Grid */}
+                              <div className="space-y-2">
+                                <label className="block font-mono text-[8px] text-white/40 uppercase">Active Carousel Pictures ({aboutForm.id_card_images?.length || 0})</label>
+                                
+                                {aboutForm.id_card_images && aboutForm.id_card_images.length > 0 ? (
+                                  <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                                    {aboutForm.id_card_images.map((img, idx) => (
+                                      <div key={idx} className="relative aspect-[1/1.3] rounded-lg border border-white/10 bg-[#050608] overflow-hidden group/thumb">
+                                        <img
+                                          src={img}
+                                          alt={`Thumb ${idx}`}
+                                          className="w-full h-full object-cover"
+                                          referrerPolicy="no-referrer"
+                                        />
+                                        <div className="absolute top-1 left-1 bg-black/75 px-1 rounded text-[6px] font-mono text-[#c3f400]">
+                                          #{idx + 1}
+                                        </div>
+                                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center">
+                                          <button
+                                            type="button"
+                                            onClick={() => handleRemoveImageAtIndex(idx)}
+                                            className="bg-red-500 text-white rounded p-1 hover:bg-red-600 transition-colors"
+                                            title="Remove picture"
+                                          >
+                                            <X className="w-3.5 h-3.5" />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="border border-dashed border-white/10 rounded-xl p-4 text-center bg-[#050608]/50">
+                                    <User className="w-8 h-8 text-white/20 mx-auto mb-1.5" />
+                                    <span className="font-mono text-[8px] text-white/30 tracking-widest uppercase block">BIOMETRIC SCANNER ACTIVE</span>
+                                    <p className="font-sans text-[9px] text-white/20 mt-1">Upload photos above to active the 3D rotating multi-portrait carousel.</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* ID Card Front Side Details */}
+                          <div className="border-t border-white/5 pt-6 space-y-4">
+                            <h5 className="font-sora text-[11px] font-bold text-[#adc6ff] uppercase tracking-wide">3D Identity Card Front-Side Details</h5>
+                            <p className="font-sans text-[10px] text-white/30 leading-relaxed">
+                              Customize the user identity, college, graduation year, and auxiliary data printed on the front side of your 3D Identity Card.
+                            </p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="space-y-1.5">
+                                <label className="block font-mono text-[8px] text-white/40 uppercase">Full Name</label>
+                                <input
+                                  type="text"
+                                  value={aboutForm.id_card_name || ""}
+                                  onChange={(e) => setAboutForm({ ...aboutForm, id_card_name: e.target.value })}
+                                  placeholder="Mukteswar Gochhayat"
+                                  className="w-full bg-[#050608] border border-white/10 px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#c3f400]"
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="block font-mono text-[8px] text-white/40 uppercase">College / University</label>
+                                <input
+                                  type="text"
+                                  value={aboutForm.id_card_college || ""}
+                                  onChange={(e) => setAboutForm({ ...aboutForm, id_card_college: e.target.value })}
+                                  placeholder="ITER, SOA University"
+                                  className="w-full bg-[#050608] border border-white/10 px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#c3f400]"
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="block font-mono text-[8px] text-white/40 uppercase">Graduation / Class Year</label>
+                                <input
+                                  type="text"
+                                  value={aboutForm.id_card_grad_year || ""}
+                                  onChange={(e) => setAboutForm({ ...aboutForm, id_card_grad_year: e.target.value })}
+                                  placeholder="Class of 2026"
+                                  className="w-full bg-[#050608] border border-white/10 px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#c3f400]"
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="block font-mono text-[8px] text-white/40 uppercase">Role / Designation</label>
+                                <input
+                                  type="text"
+                                  value={aboutForm.id_card_role || ""}
+                                  onChange={(e) => setAboutForm({ ...aboutForm, id_card_role: e.target.value })}
+                                  placeholder="Full-Stack Software Engineer"
+                                  className="w-full bg-[#050608] border border-white/10 px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#c3f400]"
+                                />
+                              </div>
+                              <div className="space-y-1.5 md:col-span-2">
+                                <label className="block font-mono text-[8px] text-white/40 uppercase">Extra Biometric / Code Details</label>
+                                <input
+                                  type="text"
+                                  value={aboutForm.id_card_extra || ""}
+                                  onChange={(e) => setAboutForm({ ...aboutForm, id_card_extra: e.target.value })}
+                                  placeholder="SECURE ACCESS LEVEL: A1 // REG: 2201201103"
+                                  className="w-full bg-[#050608] border border-white/10 px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#c3f400]"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* ID Card Back Side Details */}
+                          <div className="border-t border-white/5 pt-6 space-y-4">
+                            <h5 className="font-sora text-[11px] font-bold text-[#adc6ff] uppercase tracking-wide">3D Identity Card Back-Side Details</h5>
+                            <p className="font-sans text-[10px] text-white/30 leading-relaxed">
+                              Customize the hardware and software credentials printed on the back side of your 3D Identity Card.
+                            </p>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div className="space-y-1.5">
+                                <label className="block font-mono text-[8px] text-white/40 uppercase">Hardware Protocol</label>
+                                <input
+                                  type="text"
+                                  value={aboutForm.card_back_protocol || ""}
+                                  onChange={(e) => setAboutForm({ ...aboutForm, card_back_protocol: e.target.value })}
+                                  placeholder="MUKTESWAR-V3"
+                                  className="w-full bg-[#050608] border border-white/10 px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#c3f400]"
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="block font-mono text-[8px] text-white/40 uppercase">Main Networks</label>
+                                <input
+                                  type="text"
+                                  value={aboutForm.card_back_networks || ""}
+                                  onChange={(e) => setAboutForm({ ...aboutForm, card_back_networks: e.target.value })}
+                                  placeholder="PYTHON & JAVA"
+                                  className="w-full bg-[#050608] border border-white/10 px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#c3f400]"
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="block font-mono text-[8px] text-white/40 uppercase">Paradigms</label>
+                                <input
+                                  type="text"
+                                  value={aboutForm.card_back_paradigms || ""}
+                                  onChange={(e) => setAboutForm({ ...aboutForm, card_back_paradigms: e.target.value })}
+                                  placeholder="DJANGO & REACT"
+                                  className="w-full bg-[#050608] border border-white/10 px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#c3f400]"
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="block font-mono text-[8px] text-white/40 uppercase">Signature</label>
+                                <input
+                                  type="text"
+                                  value={aboutForm.card_back_signature || ""}
+                                  onChange={(e) => setAboutForm({ ...aboutForm, card_back_signature: e.target.value })}
+                                  placeholder="SHA-256: 0x937B..."
+                                  className="w-full bg-[#050608] border border-white/10 px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#c3f400]"
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="block font-mono text-[8px] text-white/40 uppercase">Core CPU</label>
+                                <input
+                                  type="text"
+                                  value={aboutForm.card_back_core || ""}
+                                  onChange={(e) => setAboutForm({ ...aboutForm, card_back_core: e.target.value })}
+                                  placeholder="CORE: ARM64-NEON"
+                                  className="w-full bg-[#050608] border border-white/10 px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#c3f400]"
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="block font-mono text-[8px] text-white/40 uppercase">Temperature Status</label>
+                                <input
+                                  type="text"
+                                  value={aboutForm.card_back_temp || ""}
+                                  onChange={(e) => setAboutForm({ ...aboutForm, card_back_temp: e.target.value })}
+                                  placeholder="TEMP: 32°C // IDLE"
+                                  className="w-full bg-[#050608] border border-white/10 px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#c3f400]"
+                                />
+                              </div>
                             </div>
                           </div>
 
